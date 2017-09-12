@@ -27,7 +27,7 @@ def loopSpace(n,courant,phiN,phiNminus = None):
     return(phiNplus)
 
 def main:
-    '''Program to solve the linear advection equation using a '''
+    '''Program to solve the linear advection equation using a choice of numerical schemes'''
 
 
 # Setup, space, initial phi profile and Courant number
