@@ -4,19 +4,21 @@ import matplotlib.pyplot as plt  # plotting library
 
 # find nearest function
 def find_nearest(array, value):
-    """Function to return index of element in array which is numerically closest to value"""
+    """Function to return index of element in <array> which is numerically closest to <value>"""
     idx = (np.abs(array - value)).argmin()
     return idx
 
-
 # initial condition definition
-def initialBell_old(x):
-    return np.where(x % 1. < 0.5, np.power(np.sin(2 * x * np.pi), 2), 0.)
-
-
-# initial condition definition
-def initialBell(x, width=None):
-    if width is None:
+def initialBell(x, width=0.5):
+    """Function to create initial conditions for an advection-diffusion scheme. \
+     x is an evenly-spaced, ascending vector of spatial coordinates from 0 to 1. \
+     width [optional, default = 0.5] defines the fraction of x defined with a non-zero initial condition.\
+     Inital values based on a sin^2 curve of amplitude 1 over range 0 to pi mapped over width.\
+     For width <= 0.5, width mapped to x = 0.5-width : 0.5\
+     For width > 0.5, width centred on x = 0.5.\
+     \
+     Brian Scannell, CMSS September 2017"""
+    if width == 0.5:
         initialCond = np.where(x % 1. < 0.5, np.power(np.sin(2 * x * np.pi), 2), 0.)
         return initialCond
     else:
@@ -36,12 +38,7 @@ def initialBell(x, width=None):
         return initialCond
 
 
-# alternative initial condition definition
-def initialSin3(x):
-    return np.where(x % 1. < 0.5, np.power(np.sin(4 * x * np.pi), 3), 0.)
-
-
-# loop over space function
+# advection-diffusion scheme
 def adv_diff(c, d, f, fm=None):
     fp = np.zeros_like(f)
     n = np.shape(f)[0] - 1
@@ -61,43 +58,63 @@ def adv_diff(c, d, f, fm=None):
 
 
 def main():
-    """Program written as an exercise durign the NCAS Climate Modelling Summer School 2017. /
-    Program solves the linear advection and diffusion equation and evaluates the impacts of /
-    varying the Courant number on the integrated quantity after a standard run time./
+    """Program written as an exercise durign the NCAS Climate Modelling Summer School 2017.\
+    Program solves the linear advection and diffusion equation and evaluates the impacts of\
+    varying the Courant number on the integrated quantity after a standard run time.\
 
-    Brian Scannell September 2017 """
+    Brian Scannell, CMSS September 2017"""
 
-    # Setup, space, initial phi profile and Courant number
-    nx = 100  # number of points in space
-    c = 0.2  # Courant number = u delta(t) / delta(x)
-    D = 0.2  # non-dimensional diffusivity coefficient = 2.k.delta(t)/delta(x)^2
-    nt = 200  # number of time steps
-    x = np.linspace(0.0, 1.0, nx + 1)  # spatial variable going from zero to one inclusive
+    # User configuration
+    T = 10.         # total model run time in seconds
+    U = 0.125        # advection velocity in m/s
+    DT = 1./100.    # time step size
+    DX = 1./100.    # spatial grid spacing - ring world is only 1m around
+    K =  1e-3      # diffusivity
+
+    # Derived parameters based on configuration
+    t = np.append(np.arange(0,T,T/10),T)        # Time steps at which to record results
+    nx = 1./DX  # number of points in space
+    c = U*DT/DX  # Courant number = u delta(t) / delta(x)
+    D = 2*K*DT/np.power(DX,2)  # non-dimensional diffusivity coefficient = 2.k.delta(t)/delta(x)^2
+    nt = int(T/DT)  # number of time steps
+    x = np.linspace(0.0, 1.0, nx + 1)  # spatial grid point positions
+
+    # define output arrays
+    phi_results = np.zeros((np.size(t),np.size(x)))
+    phi_sum = np.zeros(np.size(t))
 
     # initial conditions for variable phi at timestep 0
     phi_old = initialBell(x, 0.25)
+    phi_results[0,:] = phi_old
+    phi_sum[0] = sum(phi_old)
     # update phi to timestep 1 using FTCS
     phi = adv_diff(c,D,phi_old)
     # loop over remaining timesteps using CTCS
-    for n in xrange(1, nt):
+    for n in xrange(2, nt+1):
+        tn = n*DT
         phi_new = adv_diff(c, D, phi, phi_old)
         phi_old = phi
         phi = phi_new
+        # determine whether to save results
+        if any(abs(tn-t) < DT):
+            ix = find_nearest(t,tn)
+            phi_results[ix,:] = phi
+            phi_sum[ix] = sum(phi)
     # end of time loop
 
-    # derived quantities
-    u = 1.
-    dx = 1. / nx
-    dt = c * dx / u
-    t = nt * dt
+    # scale results
+    phi_sum = phi_sum / phi_sum[0]
 
     # Plot the solution in comparison with the analytic solution
-    #plt.plot(x, initialBell(x - u * t, 0.25), '*k', label='analytic')
-    plt.plot(x, initialBell(x, 0.25), 'r', label='analytic, t=0')
-    plt.plot(x, phi, 'b', label='CTCS')
+    for ix in range(np.size(t)):
+        plt.plot(x,phi_results[ix,:], label = '$t=%.0fs, \Sigma\phi=%.2f$' % (t[ix],phi_sum[ix]))
+
+#    plt.plot(x, initialBell(x, 0.25), 'r', label='t=0')
+#    plt.plot(x, phi, 'b', label='CTCS')
     plt.legend(loc='best')
     plt.xlabel('$x$')
     plt.ylabel('$\phi$')
+    plt.title('c=%.3f, D=%.3f' % (c, D))
     plt.axhline(0, linestyle=':', color='black')
     plt.show()
 
