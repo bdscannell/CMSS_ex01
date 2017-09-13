@@ -67,17 +67,17 @@ def main():
     # User configuration
     T = 10.         # total model run time in seconds
     U = 0.125        # advection velocity in m/s
-    DT = 1./100.    # time step size
+    DT = 1./48.    # time step size
     DX = 1./100.    # spatial grid spacing - ring world is only 1m around
-    K =  1e-3      # diffusivity
+    K =  1.14e-3      # diffusivity
 
     # Derived parameters based on configuration
-    t = np.append(np.arange(0,T,T/10),T)        # Time steps at which to record results
+    t = np.append(np.arange(0,T,T/5),T)        # Time steps at which to record results
     nx = 1./DX  # number of points in space
     c = U*DT/DX  # Courant number = u delta(t) / delta(x)
     D = 2*K*DT/np.power(DX,2)  # non-dimensional diffusivity coefficient = 2.k.delta(t)/delta(x)^2
     nt = int(T/DT)  # number of time steps
-    x = np.linspace(0.0, 1.0, nx + 1)  # spatial grid point positions
+    x = np.linspace(0.0, 1.0, int(nx)+1)  # spatial grid point positions
 
     # define output arrays
     phi_results = np.zeros((np.size(t),np.size(x)))
