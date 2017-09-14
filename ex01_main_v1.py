@@ -38,21 +38,21 @@ def initialBell(x, width=0.5):
         return initialCond
 
 
-# advection-diffusion scheme
+# advection-diffusion scheme with FTCS/CTCS using timestep n-1 for diffusion
 def adv_diff(c, d, f, fm=None):
     fp = np.zeros_like(f)
     n = np.shape(f)[0] - 1
     if fm is None:
         for j in xrange(1, n):  # FTCS scheme
-            fp[j] = f[j] - 0.5*c*(f[j+1]-f[j-1]) + 0.5*d*(f[j+1]-2*f[j]+f[j-1])
+            fp[j] = f[j] - 0.5*c*(f[j+1]-f[j-1]) + d*(f[j+1]-2*f[j]+f[j-1])
         # boundary condition
-        fp[0] = f[0] - 0.5*c*(f[1]-f[n-1]) + 0.5*d*(f[1]-2*f[0]+f[n-1])
+        fp[0] = f[0] - 0.5*c*(f[1]-f[n-1]) + d*(f[1]-2*f[0]+f[n-1])
         fp[n] = fp[0]
     else:
         for j in xrange(1, n):  # CTCS scheme
-            fp[j] = fm[j] - c*(f[j+1]-f[j-1]) + d*(fm[j+1]-2*fm[j]+fm[j-1])
+            fp[j] = fm[j] - c*(f[j+1]-f[j-1]) + 2*d*(fm[j+1]-2*fm[j]+fm[j-1])
         # boundary condition
-        fp[0] = fm[0] - c*(f[1]-f[n-1]) + d*(fm[1]-2*fm[0]+fm[n-1])
+        fp[0] = fm[0] - c*(f[1]-f[n-1]) + 2*d*(fm[1]-2*fm[0]+fm[n-1])
         fp[n] = fp[0]
     return (fp)
 
@@ -75,7 +75,7 @@ def main():
     t = np.append(np.arange(0,T,T/5),T)        # Time steps at which to record results
     nx = 1./DX  # number of points in space
     c = U*DT/DX  # Courant number = u delta(t) / delta(x)
-    D = 2*K*DT/np.power(DX,2)  # non-dimensional diffusivity coefficient = 2.k.delta(t)/delta(x)^2
+    d = K*DT/np.power(DX,2)  # non-dimensional diffusivity coefficient = 2.k.delta(t)/delta(x)^2
     nt = int(T/DT)  # number of time steps
     x = np.linspace(0.0, 1.0, int(nx)+1)  # spatial grid point positions
 
@@ -88,11 +88,11 @@ def main():
     phi_results[0,:] = phi_old
     phi_sum[0] = sum(phi_old)
     # update phi to timestep 1 using FTCS
-    phi = adv_diff(c,D,phi_old)
+    phi = adv_diff(c,d,phi_old)
     # loop over remaining timesteps using CTCS
     for n in xrange(2, nt+1):
         tn = n*DT
-        phi_new = adv_diff(c, D, phi, phi_old)
+        phi_new = adv_diff(c, d, phi, phi_old)
         phi_old = phi
         phi = phi_new
         # determine whether to save results
@@ -114,7 +114,7 @@ def main():
     plt.legend(loc='best')
     plt.xlabel('$x$')
     plt.ylabel('$\phi$')
-    plt.title('c=%.3f, D=%.3f' % (c, D))
+    plt.title('$c=%.3f, D=%.3f, c^2+4d=%.3f$' % (c, d, c**2+4*d))
     plt.axhline(0, linestyle=':', color='black')
     plt.show()
 
