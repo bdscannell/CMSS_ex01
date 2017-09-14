@@ -56,6 +56,40 @@ def adv_diff(c, d, f, fm=None):
         fp[n] = fp[0]
     return (fp)
 
+def adv_diff_scenario(T, U, DT, DX, K):
+    """Code to execute the advection-diffusion solution for a specific scenario.\
+
+    Brian Scannell, CMSS September 2017"""
+
+    # Derived parameters based on configuration
+    t = np.append(np.arange(0, T, T / 5), T)  # Time steps at which to record results
+    nx = 1. / DX  # number of points in space
+    c = U * DT / DX  # Courant number = u delta(t) / delta(x)
+    d = K * DT / np.power(DX, 2)  # non-dimensional diffusivity coefficient = 2.k.delta(t)/delta(x)^2
+    nt = int(T / DT)  # number of time steps
+    x = np.linspace(0.0, 1.0, int(nx) + 1)  # spatial grid point positions
+
+    # define output arrays
+    phi_results = np.zeros((np.size(t), np.size(x)))
+
+    # initial conditions for variable phi at timestep 0
+    phi_old = initialBell(x, 0.25)
+    phi_results[0, :] = phi_old
+    # update phi to timestep 1 using FTCS
+    phi = adv_diff(c, d, phi_old)
+    # loop over remaining timesteps using CTCS
+    for n in xrange(2, nt + 1):
+        tn = n * DT
+        phi_new = adv_diff(c, d, phi, phi_old)
+        phi_old = phi
+        phi = phi_new
+        # determine whether to save results
+        if any(abs(tn - t) < DT):
+            ix = find_nearest(t, tn)
+            phi_results[ix, :] = phi
+    # end of time loop
+
+    return [x, t, c, d, phi_results]
 
 def main():
     """Program written as an exercise durign the NCAS Climate Modelling Summer School 2017.\
@@ -71,52 +105,32 @@ def main():
     DX = 1./100.    # spatial grid spacing - ring world is only 1m around
     K =  1.14e-3      # diffusivity
 
-    # Derived parameters based on configuration
-    t = np.append(np.arange(0,T,T/5),T)        # Time steps at which to record results
-    nx = 1./DX  # number of points in space
-    c = U*DT/DX  # Courant number = u delta(t) / delta(x)
-    d = K*DT/np.power(DX,2)  # non-dimensional diffusivity coefficient = 2.k.delta(t)/delta(x)^2
-    nt = int(T/DT)  # number of time steps
-    x = np.linspace(0.0, 1.0, int(nx)+1)  # spatial grid point positions
-
-    # define output arrays
-    phi_results = np.zeros((np.size(t),np.size(x)))
-    phi_sum = np.zeros(np.size(t))
-
-    # initial conditions for variable phi at timestep 0
-    phi_old = initialBell(x, 0.25)
-    phi_results[0,:] = phi_old
-    phi_sum[0] = sum(phi_old)
-    # update phi to timestep 1 using FTCS
-    phi = adv_diff(c,d,phi_old)
-    # loop over remaining timesteps using CTCS
-    for n in xrange(2, nt+1):
-        tn = n*DT
-        phi_new = adv_diff(c, d, phi, phi_old)
-        phi_old = phi
-        phi = phi_new
-        # determine whether to save results
-        if any(abs(tn-t) < DT):
-            ix = find_nearest(t,tn)
-            phi_results[ix,:] = phi
-            phi_sum[ix] = sum(phi)
-    # end of time loop
+    # Run current scenario
+    output = adv_diff_scenario(T, U, DT, DX, K)
+    x = output[0]
+    t = output[1]
+    c = output[2]
+    d = output[3]
+    phi_results = output[4]
 
     # scale results
-    phi_sum = phi_sum / phi_sum[0]
+    phi_sum = phi_results.sum(axis=1)
+    phi_sum = phi_sum/phi_sum[0]
 
     # Plot the solution in comparison with the analytic solution
-    for ix in range(np.size(t)):
-        plt.plot(x,phi_results[ix,:], label = '$t=%.0fs, \Sigma\phi=%.2f$' % (t[ix],phi_sum[ix]))
+    for ix in range(np.size(phi_sum)):
+        plt.plot(x,phi_results[ix,:], label = '$t=%.0fs,\ \ \Sigma\phi=%.2f$' % (t[ix],phi_sum[ix]))
 
 #    plt.plot(x, initialBell(x, 0.25), 'r', label='t=0')
 #    plt.plot(x, phi, 'b', label='CTCS')
-    plt.legend(loc='best')
-    plt.xlabel('$x$')
-    plt.ylabel('$\phi$')
-    plt.title('$c=%.3f, D=%.3f, c^2+4d=%.3f$' % (c, d, c**2+4*d))
+    legend = plt.legend(loc='upper right', fontsize=11)
+    legend.get_frame().set_edgecolor('none')
+    plt.xlabel('$x$', fontsize=16)
+    plt.ylabel('$\phi$', fontsize=16)
+    plt.title('$c=%.3f,\ \ D=%.3f,\ \ c^2+4d=%.3f$' % (c, d, c**2+4*d), fontsize=18)
     plt.axhline(0, linestyle=':', color='black')
+    plt.grid()
     plt.show()
 
-
+# run the program
 main()
